@@ -1,4 +1,4 @@
-import { TSESLint } from "@typescript-eslint/utils";
+import { TSESLint, AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { REQUIRE_ALT_MESSAGES, TMessagesId } from "./constants";
 import crypto from "node:crypto";
 
@@ -25,9 +25,33 @@ export const requireImageWithAlt: TSESLint.RuleModule<TMessagesId> = {
 
       const attributes = node.attributes;
 
-      const hasAltAttribute = attributes.some((attr) =>
-        attr.type === "JSXAttribute" ? attr.name.name === "alt" : true
-      );
+      const hasAltAttribute = attributes.some((attr) => {
+        if (attr.type === "JSXAttribute") {
+          return attr.name.name === "alt";
+        } else {
+          const spreadAttrName =
+            attr.argument.type === "Identifier" ? attr.argument.name : null;
+
+          const references = context.getScope().references;
+
+          const foundOriginSpreadAttrName = references.find(
+            (ref) => ref.identifier.name === spreadAttrName
+          );
+
+          if (
+            foundOriginSpreadAttrName &&
+            foundOriginSpreadAttrName.writeExpr?.type === "ObjectExpression"
+          ) {
+            try {
+              return foundOriginSpreadAttrName.writeExpr.properties
+                .filter((prop) => prop.type === "Property")
+                .some((prop) => (prop as any).key.value === spreadAttrName);
+            } catch (err) {
+              return false;
+            }
+          }
+        }
+      });
 
       if (!hasAltAttribute) {
         context.report({
