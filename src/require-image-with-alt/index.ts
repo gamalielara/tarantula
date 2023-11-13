@@ -1,6 +1,7 @@
 import { TSESLint, AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { REQUIRE_ALT_MESSAGES, TMessagesId } from "./constants";
 import crypto from "node:crypto";
+import checkHasAttr from "../globalUtils/checkHasAttr";
 
 export const requireImageWithAltRuleName = "require-image-with-alt";
 export const requireImageWithAlt: TSESLint.RuleModule<TMessagesId> = {
@@ -16,42 +17,17 @@ export const requireImageWithAlt: TSESLint.RuleModule<TMessagesId> = {
     schema: [],
   },
   create: (context) => ({
-    JSXOpeningElement: (node) => {
+    JSXOpeningElement: function (node) {
       const nodeNameTree = node.name;
       const nodeName =
         nodeNameTree.type === "JSXIdentifier" && nodeNameTree.name;
 
-      if (!nodeName || nodeName !== "img") return;
+      const isImageElement =
+        nodeName === "img" || checkHasAttr({ attrName: "src", context, node });
 
-      const attributes = node.attributes;
+      if (!isImageElement) return;
 
-      const hasAltAttribute = attributes.some((attr) => {
-        if (attr.type === "JSXAttribute") {
-          return attr.name.name === "alt";
-        } else {
-          const spreadAttrName =
-            attr.argument.type === "Identifier" ? attr.argument.name : null;
-
-          const references = context.getScope().references;
-
-          const foundOriginSpreadAttrName = references.find(
-            (ref) => ref.identifier.name === spreadAttrName
-          );
-
-          if (
-            foundOriginSpreadAttrName &&
-            foundOriginSpreadAttrName.writeExpr?.type === "ObjectExpression"
-          ) {
-            try {
-              return foundOriginSpreadAttrName.writeExpr.properties
-                .filter((prop) => prop.type === "Property")
-                .some((prop) => (prop as any).key.value === spreadAttrName);
-            } catch (err) {
-              return false;
-            }
-          }
-        }
-      });
+      const hasAltAttribute = checkHasAttr({ attrName: "alt", context, node });
 
       if (!hasAltAttribute) {
         context.report({
