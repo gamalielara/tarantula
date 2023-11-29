@@ -5,7 +5,6 @@ import {
   TRuleParameter,
 } from "./constants";
 import checkHasAttr from "../globalUtils/checkHasAttr";
-import crypto from "node:crypto";
 
 export const requireAttributesName = "require-attributes";
 
